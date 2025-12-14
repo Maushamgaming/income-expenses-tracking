@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Personal Finance Tracker</title>
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Finance Tracker">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23667eea' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>💰</text></svg>">
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .gradient-bg { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .card { backdrop-filter: blur(10px); background: rgba(255,255,255,0.95); }
+        .income-gradient { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .expense-gradient { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+        .balance-gradient { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        .scrollbar-thin::-webkit-scrollbar { width: 6px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 10px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #c1c1c1; border-radius: 10px; }
+        .tab-active { border-bottom: 3px solid #667eea; color: #667eea; }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="gradient-bg text-white py-6 px-4 shadow-lg">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-wallet text-3xl"></i>
+                    <h1 class="text-2xl font-bold">Finance Tracker</h1>
+                </div>
+                <div class="text-sm opacity-90">
+                    <i class="fas fa-calendar-alt mr-2"></i>
+                    <span id="currentDate"></span>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Summary Cards -->
+    <div class="max-w-7xl mx-auto px-4 -mt-6">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="income-gradient rounded-xl p-5 text-white shadow-lg transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm opacity-90">Total Income</p>
+                        <p class="text-2xl font-bold" id="totalIncome">$0.00</p>
+                    </div>
+                    <i class="fas fa-arrow-up text-3xl opacity-50"></i>
+                </div>
+            </div>
+            <div class="expense-gradient rounded-xl p-5 text-white shadow-lg transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm opacity-90">Total Expenses</p>
+                        <p class="text-2xl font-bold" id="totalExpenses">$0.00</p>
+                    </div>
+                    <i class="fas fa-arrow-down text-3xl opacity-50"></i>
+                </div>
+            </div>
+            <div class="balance-gradient rounded-xl p-5 text-white shadow-lg transform hover:scale-105 transition-transform">
+                <div class="flex justify-between items-center">
+                    <div>
+                        <p class="text-sm opacity-90">Net Balance</p>
+                        <p class="text-2xl font-bold" id="netBalance">$0.00</p>
+                    </div>
+                    <i class="fas fa-piggy-bank text-3xl opacity-50"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Left Column - Add Transaction & Budgets -->
+            <div class="space-y-6">
+                <!-- Add Transaction -->
+                <div class="card rounded-xl shadow-lg p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-plus-circle text-purple-600"></i>
+                        Add Transaction
+                    </h2>
+                    <form id="transactionForm" class="space-y-4">
+                        <div class="flex gap-2">
+                            <button type="button" id="incomeBtn" class="flex-1 py-2 px-4 rounded-lg font-medium transition-all bg-gray-200 text-gray-600 hover:bg-green-500 hover:text-white" onclick="setTransactionType('income')">
+                                <i class="fas fa-plus mr-1"></i> Income
+                            </button>
+                            <button type="button" id="expenseBtn" class="flex-1 py-2 px-4 rounded-lg font-medium transition-all bg-red-500 text-white" onclick="setTransactionType('expense')">
+                                <i class="fas fa-minus mr-1"></i> Expense
+                            </button>
+                        </div>
+                        <input type="number" id="amount" placeholder="Amount" step="0.01" min="0" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <select id="category" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                            <option value="">Select Category</option>
+                        </select>
+                        <input type="text" id="description" placeholder="Description (optional)"
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <input type="date" id="date" required
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent">
+                        <button type="submit" class="w-full gradient-bg text-white py-2 px-4 rounded-lg font-medium hover:opacity-90 transition-opacity">
+                            <i class="fas fa-save mr-2"></i>Add Transaction
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Budget Limits -->
+                <div class="card rounded-xl shadow-lg p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-purple-600"></i>
+                        Budget Limits
+                    </h2>
+                    <div id="budgetSection" class="space-y-4">
+                        <div class="flex gap-2">
+                            <select id="budgetCategory" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            </select>
+                            <input type="number" id="budgetAmount" placeholder="Limit" min="0" step="0.01"
+                                class="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <button onclick="setBudget()" class="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700">
+                                <i class="fas fa-check"></i>
+                            </button>
+                        </div>
+                        <div id="budgetBars" class="space-y-3 max-h-64 overflow-y-auto scrollbar-thin"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Middle Column - Charts -->
+            <div class="space-y-6">
+                <!-- Spending Breakdown -->
+                <div class="card rounded-xl shadow-lg p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-purple-600"></i>
+                        Spending Breakdown
+                    </h2>
+                    <div class="h-64">
+                        <canvas id="categoryChart"></canvas>
+                    </div>
+                    <div id="categoryLegend" class="mt-4 grid grid-cols-2 gap-2 text-sm"></div>
+                </div>
+
+                <!-- Monthly Trends -->
+                <div class="card rounded-xl shadow-lg p-6">
+                    <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <i class="fas fa-chart-line text-purple-600"></i>
+                        Monthly Trends
+                    </h2>
+                    <div class="h-64">
+                        <canvas id="trendChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Transaction History -->
+            <div class="card rounded-xl shadow-lg p-6">
+                <h2 class="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <i class="fas fa-history text-purple-600"></i>
+                    Transaction History
+                </h2>
+                
+                <!-- Filters -->
+                <div class="space-y-3 mb-4">
+                    <div class="flex gap-2">
+                        <select id="filterType" onchange="filterTransactions()" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="all">All Types</option>
+                            <option value="income">Income</option>
+                            <option value="expense">Expense</option>
+                        </select>
+                        <select id="filterCategory" onchange="filterTransactions()" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                            <option value="all">All Categories</option>
+                        </select>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="date" id="filterStartDate" onchange="filterTransactions()" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                        <input type="date" id="filterEndDate" onchange="filterTransactions()" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                    </div>
+                    <input type="text" id="filterSearch" onkeyup="filterTransactions()" placeholder="Search description..."
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm">
+                </div>
+
+                <!-- Transaction List -->
+                <div id="transactionList" class="space-y-2 max-h-96 overflow-y-auto scrollbar-thin"></div>
+                
+                <div id="noTransactions" class="text-center py-8 text-gray-500">
+                    <i class="fas fa-receipt text-4xl mb-2"></i>
+                    <p>No transactions yet</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl p-6 max-w-sm mx-4">
+            <h3 class="text-lg font-bold text-gray-800 mb-2">Delete Transaction?</h3>
+            <p class="text-gray-600 mb-4">This action cannot be undone.</p>
+            <div class="flex gap-3">
+                <button onclick="closeDeleteModal()" class="flex-1 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300">Cancel</button>
+                <button onclick="confirmDelete()" class="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Data Structure
+        let transactions = JSON.parse(localStorage.getItem('transactions')) || [];
+        let budgets = JSON.parse(localStorage.getItem('budgets')) || {};
+        let currentType = 'expense';
+        let deleteId = null;
+        let categoryChart = null;
+        let trendChart = null;
+
+        const categories = {
+            income: ['Salary', 'Freelance', 'Investments', 'Rental', 'Gifts', 'Other Income'],
+            expense: ['Food & Dining', 'Transportation', 'Housing', 'Utilities', 'Entertainment', 'Shopping', 'Healthcare', 'Education', 'Travel', 'Personal Care', 'Other']
+        };
+
+        const categoryColors = {
+            'Food & Dining': '#FF6384',
+            'Transportation': '#36A2EB',
+            'Housing': '#FFCE56',
+            'Utilities': '#4BC0C0',
+            'Entertainment': '#9966FF',
+            'Shopping': '#FF9F40',
+            'Healthcare': '#FF6384',
+            'Education': '#C9CBCF',
+            'Travel': '#7BC225',
+            'Personal Care': '#E7E9ED',
+            'Other': '#8B5CF6',
+            'Salary': '#10B981',
+            'Freelance': '#3B82F6',
+            'Investments': '#F59E0B',
+            'Rental': '#EC4899',
+            'Gifts': '#8B5CF6',
+            'Other Income': '#6B7280'
+        };
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { 
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' 
+            });
+            document.getElementById('date').valueAsDate = new Date();
+            
+            updateCategoryDropdowns();
+            updateUI();
+        });
+
+        function setTransactionType(type) {
+            currentType = type;
+            const incomeBtn = document.getElementById('incomeBtn');
+            const expenseBtn = document.getElementById('expenseBtn');
+            
+            if (type === 'income') {
+                incomeBtn.className = 'flex-1 py-2 px-4 rounded-lg font-medium transition-all bg-green-500 text-white';
+                expenseBtn.className = 'flex-1 py-2 px-4 rounded-lg font-medium transition-all bg-gray-200 text-gray-600 hover:bg-red-500 hover:text-white';
+            } else {
+                expenseBtn.className = 'flex-1 py-2 px-4 rounded-lg font-medium transition-all bg-red-500 text-white';
+                incomeBtn.className = 'flex-1 py-2 px-4 rounded-lg font-medium transition-all bg-gray-200 text-gray-600 hover:bg-green-500 hover:text-white';
+            }
+            updateCategoryDropdowns();
+        }
+
+        function updateCategoryDropdowns() {
+            const categorySelect = document.getElementById('category');
+            const budgetCategorySelect = document.getElementById('budgetCategory');
+            const filterCategorySelect = document.getElementById('filterCategory');
+            
+            // Main form category
+            categorySelect.innerHTML = '<option value="">Select Category</option>';
+            categories[currentType].forEach(cat => {
+                categorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+            
+            // Budget category (expenses only)
+            budgetCategorySelect.innerHTML = '';
+            categories.expense.forEach(cat => {
+                budgetCategorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+            });
+            
+            // Filter category (all)
+            filterCategorySelect.innerHTML = '<option value="all">All Categories</option>';
+            [...categories.income, ...categories.expense].forEach(cat => {
+                if (!filterCategorySelect.innerHTML.includes(`value="${cat}"`)) {
+                    filterCategorySelect.innerHTML += `<option value="${cat}">${cat}</option>`;
+                }
+            });
+        }
+
+        // Transaction Form
+        document.getElementById('transactionForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const transaction = {
+                id: Date.now(),
+                type: currentType,
+                amount: parseFloat(document.getElementById('amount').value),
+                category: document.getElementById('category').value,
+                description: document.getElementById('description').value,
+                date: document.getElementById('date').value
+            };
+            
+            transactions.push(transaction);
+            saveData();
+            updateUI();
+            
+            // Reset form
+            document.getElementById('amount').value = '';
+            document.getElementById('category').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('date').valueAsDate = new Date();
+        });
+
+        function setBudget() {
+            const category = document.getElementById('budgetCategory').value;
+            const amount = parseFloat(document.getElementById('budgetAmount').value);
+            
+            if (category && amount > 0) {
+                budgets[category] = amount;
+                saveData();
+                updateBudgetBars();
+                document.getElementById('budgetAmount').value = '';
+            }
+        }
+
+        function removeBudget(category) {
+            delete budgets[category];
+            saveData();
+            updateBudgetBars();
+        }
+
+        function saveData() {
+            localStorage.setItem('transactions', JSON.stringify(transactions));
+            localStorage.setItem('budgets', JSON.stringify(budgets));
+        }
+
+        function updateUI() {
+            updateSummary();
+            updateCategoryChart();
+            updateTrendChart();
+            updateBudgetBars();
+            filterTransactions();
+        }
+
+        function updateSummary() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const monthlyTransactions = transactions.filter(t => {
+                const d = new Date(t.date);
+                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            });
+            
+            const income = monthlyTransactions.filter(t => t.type === 'income').reduce((sum, t) => sum + t.amount, 0);
+            const expenses = monthlyTransactions.filter(t => t.type === 'expense').reduce((sum, t) => sum + t.amount, 0);
+            
+            document.getElementById('totalIncome').textContent = `$${income.toFixed(2)}`;
+            document.getElementById('totalExpenses').textContent = `$${expenses.toFixed(2)}`;
+            document.getElementById('netBalance').textContent = `$${(income - expenses).toFixed(2)}`;
+        }
+
+        function updateCategoryChart() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const expensesByCategory = {};
+            transactions.filter(t => {
+                const d = new Date(t.date);
+                return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }).forEach(t => {
+                expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+            });
+            
+            const labels = Object.keys(expensesByCategory);
+            const data = Object.values(expensesByCategory);
+            const colors = labels.map(l => categoryColors[l] || '#8B5CF6');
+            
+            if (categoryChart) categoryChart.destroy();
+            
+            const ctx = document.getElementById('categoryChart').getContext('2d');
+            categoryChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: colors,
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    cutout: '60%'
+                }
+            });
+            
+            // Update legend
+            const legendContainer = document.getElementById('categoryLegend');
+            legendContainer.innerHTML = labels.map((label, i) => `
+                <div class="flex items-center gap-2">
+                    <div class="w-3 h-3 rounded-full" style="background-color: ${colors[i]}"></div>
+                    <span class="truncate">${label}</span>
+                    <span class="ml-auto font-medium">$${data[i].toFixed(0)}</span>
+                </div>
+            `).join('');
+        }
+
+        function updateTrendChart() {
+            const monthlyData = {};
+            const now = new Date();
+            
+            // Initialize last 6 months
+            for (let i = 5; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthlyData[key] = { income: 0, expense: 0 };
+            }
+            
+            transactions.forEach(t => {
+                const key = t.date.substring(0, 7);
+                if (monthlyData[key]) {
+                    monthlyData[key][t.type] += t.amount;
+                }
+            });
+            
+            const labels = Object.keys(monthlyData).map(k => {
+                const [year, month] = k.split('-');
+                return new Date(year, month - 1).toLocaleDateString('en-US', { month: 'short' });
+            });
+            
+            if (trendChart) trendChart.destroy();
+            
+            const ctx = document.getElementById('trendChart').getContext('2d');
+            trendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Income',
+                            data: Object.values(monthlyData).map(d => d.income),
+                            borderColor: '#10B981',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Expenses',
+                            data: Object.values(monthlyData).map(d => d.expense),
+                            borderColor: '#EF4444',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { usePointStyle: true, padding: 20 }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: value => '$' + value
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateBudgetBars() {
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            
+            const expensesByCategory = {};
+            transactions.filter(t => {
+                const d = new Date(t.date);
+                return t.type === 'expense' && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }).forEach(t => {
+                expensesByCategory[t.category] = (expensesByCategory[t.category] || 0) + t.amount;
+            });
+            
+            const container = document.getElementById('budgetBars');
+            container.innerHTML = '';
+            
+            Object.keys(budgets).forEach(category => {
+                const limit = budgets[category];
+                const spent = expensesByCategory[category] || 0;
+                const percentage = Math.min((spent / limit) * 100, 100);
+                const isOver = spent > limit;
+                
+                container.innerHTML += `
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-sm font-medium text-gray-700">${category}</span>
+                            <button onclick="removeBudget('${category}')" class="text-gray-400 hover:text-red-500">
+                                <i class="fas fa-times text-xs"></i>
+                            </button>
+                        </div>
+                        <div class="flex justify-between text-xs text-gray-500 mb-1">
+                            <span>$${spent.toFixed(0)} / $${limit.toFixed(0)}</span>
+                            <span class="${isOver ? 'text-red-500 font-bold' : ''}">${percentage.toFixed(0)}%</span>
+                        </div>
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full transition-all ${isOver ? 'bg-red-500' : percentage > 80 ? 'bg-yellow-500' : 'bg-green-500'}" 
+                                style="width: ${percentage}%"></div>
+                        </div>
+                        ${isOver ? '<p class="text-xs text-red-500 mt-1"><i class="fas fa-exclamation-triangle"></i> Over budget by $' + (spent - limit).toFixed(2) + '</p>' : ''}
+                    </div>
+                `;
+            });
+            
+            if (Object.keys(budgets).length === 0) {
+                container.innerHTML = '<p class="text-center text-gray-500 text-sm py-4">No budgets set yet</p>';
+            }
+        }
+
+        function filterTransactions() {
+            const type = document.getElementById('filterType').value;
+            const category = document.getElementById('filterCategory').value;
+            const startDate = document.getElementById('filterStartDate').value;
+            const endDate = document.getElementById('filterEndDate').value;
+            const search = document.getElementById('filterSearch').value.toLowerCase();
+            
+            let filtered = [...transactions];
+            
+            if (type !== 'all') {
+                filtered = filtered.filter(t => t.type === type);
+            }
+            if (category !== 'all') {
+                filtered = filtered.filter(t => t.category === category);
+            }
+            if (startDate) {
+                filtered = filtered.filter(t => t.date >= startDate);
+            }
+            if (endDate) {
+                filtered = filtered.filter(t => t.date <= endDate);
+            }
+            if (search) {
+                filtered = filtered.filter(t => 
+                    t.description.toLowerCase().includes(search) || 
+                    t.category.toLowerCase().includes(search)
+                );
+            }
+            
+            // Sort by date (newest first)
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            renderTransactions(filtered);
+        }
+
+        function renderTransactions(list) {
+            const container = document.getElementById('transactionList');
+            const noTransactions = document.getElementById('noTransactions');
+            
+            if (list.length === 0) {
+                container.innerHTML = '';
+                noTransactions.classList.remove('hidden');
+                return;
+            }
+            
+            noTransactions.classList.add('hidden');
+            container.innerHTML = list.map(t => `
+                <div class="flex items-center gap-3 p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors group">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center ${t.type === 'income' ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'}">
+                        <i class="fas fa-${t.type === 'income' ? 'arrow-up' : 'arrow-down'}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-gray-800 truncate">${t.category}</p>
+                        <p class="text-xs text-gray-500 truncate">${t.description || 'No description'}</p>
+                        <p class="text-xs text-gray-400">${new Date(t.date).toLocaleDateString()}</p>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">
+                            ${t.type === 'income' ? '+' : '-'}$${t.amount.toFixed(2)}
+                        </p>
+                        <button onclick="showDeleteModal(${t.id})" class="text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <i class="fas fa-trash text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function showDeleteModal(id) {
+            deleteId = id;
+            document.getElementById('deleteModal').classList.remove('hidden');
+            document.getElementById('deleteModal').classList.add('flex');
+        }
+
+        function closeDeleteModal() {
+            deleteId = null;
+            document.getElementById('deleteModal').classList.add('hidden');
+            document.getElementById('deleteModal').classList.remove('flex');
+        }
+
+        function confirmDelete() {
+            if (deleteId) {
+                transactions = transactions.filter(t => t.id !== deleteId);
+                saveData();
+                updateUI();
+                closeDeleteModal();
+            }
+        }
+
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('sw.js')
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+
+        // Install prompt for PWA
+        let deferredPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            showInstallButton();
+        });
+
+        function showInstallButton() {
+            const header = document.querySelector('header .max-w-7xl');
+            if (!document.getElementById('installBtn')) {
+                const btn = document.createElement('button');
+                btn.id = 'installBtn';
+                btn.className = 'bg-white text-purple-600 px-4 py-2 rounded-lg font-medium hover:bg-gray-100 transition-colors flex items-center gap-2';
+                btn.innerHTML = '<i class="fas fa-download"></i> Install App';
+                btn.onclick = installApp;
+                header.querySelector('.flex').appendChild(btn);
+            }
+        }
+
+        function installApp() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(choice => {
+                    if (choice.outcome === 'accepted') {
+                        console.log('App installed');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('installBtn')?.remove();
+                });
+            }
+        }
+    </script>
+</body>
+</html>
